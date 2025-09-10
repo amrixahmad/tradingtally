@@ -8,10 +8,10 @@ import { SectionWrapper } from "./section-wrapper"
 
 const pricing = [
   {
-    name: "Pro Monthly",
-    price: "$19",
+    name: "Trade Tally Basic",
+    price: "FREE",
     period: "/month",
-    description: "Perfect for growing businesses",
+    description: "Perfect for newbie traders",
     features: [
       "Unlimited projects",
       "Advanced analytics",
@@ -20,15 +20,15 @@ const pricing = [
       "API access",
       "Export data"
     ],
-    paymentLink: process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_MONTHLY,
+    paymentLink: process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_BASIC,
     icon: CreditCard,
     highlight: false
   },
   {
-    name: "Pro Yearly",
-    price: "$190",
+    name: "Trade Tally Pro",
+    price: "RM47",
     period: "/year",
-    description: "Best value - save $38 per year",
+    description: "For experienced traders",
     features: [
       "Everything in monthly",
       "2 months free",
@@ -37,8 +37,8 @@ const pricing = [
       "Dedicated account manager",
       "99.9% uptime SLA"
     ],
-    paymentLink: process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_YEARLY,
-    icon: Zap,
+    paymentLink: process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_PRO,
+    icon: CreditCard,
     highlight: true
   }
 ]

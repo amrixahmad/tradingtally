@@ -10,6 +10,7 @@ import { SelectCustomer } from "@/db/schema/customers"
 import { stripe } from "@/lib/stripe"
 import { auth } from "@clerk/nextjs/server"
 import Stripe from "stripe"
+import { redirect } from "next/navigation"
 
 type MembershipStatus = SelectCustomer["membership"]
 
@@ -30,6 +31,43 @@ const getMembershipStatus = (
       return "free"
     default:
       return "free"
+  }
+}
+
+// Create a Stripe Billing Portal session and redirect the user there
+export const openBillingPortal = async () => {
+  try {
+    const { userId } = await auth()
+
+    if (!userId) {
+      throw new Error("User must be authenticated to manage billing")
+    }
+
+    // Look up Stripe customer
+    const existingCustomer = await getCustomerByUserId(userId)
+
+    if (!existingCustomer?.stripeCustomerId) {
+      throw new Error(
+        "No Stripe customer found for this user. Complete a checkout first."
+      )
+    }
+
+    // Where to send users back after managing billing
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+    const returnUrl = `${baseUrl}/dashboard/billing`
+
+    const session = await stripe.billingPortal.sessions.create({
+      customer: existingCustomer.stripeCustomerId,
+      return_url: returnUrl
+    })
+
+    // Redirect the user to the Billing Portal
+    redirect(session.url)
+  } catch (error) {
+    console.error("Error opening billing portal:", error)
+    throw error instanceof Error
+      ? error
+      : new Error("Failed to open billing portal")
   }
 }
 

@@ -1,4 +1,6 @@
 import { getBillingDataByUserId } from "@/actions/customers"
+import { openBillingPortal } from "@/actions/stripe"
+import { Button } from "@/components/ui/button"
 import { auth } from "@clerk/nextjs/server"
 import { AlertCircle, CreditCard } from "lucide-react"
 
@@ -55,6 +57,14 @@ export default async function BillingPage() {
           Your current subscription plan is{" "}
           <span className="font-medium">{customerData.membership}</span>.
         </p>
+      </div>
+
+      <div className="mt-6">
+        <form action={openBillingPortal}>
+          <Button type="submit" variant="outline">
+            Manage Billing
+          </Button>
+        </form>
       </div>
     </div>
   )
