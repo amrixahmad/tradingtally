@@ -47,8 +47,14 @@ export default function DashboardClientLayout({
     return null
   }
 
-  const savedState = getCookieValue("sidebar_state")
-  const defaultOpen = savedState === null ? true : savedState === "true"
+  // Avoid hydration mismatch by deferring cookie read until after mount
+  const [mounted, setMounted] = useState(false)
+  const [defaultOpen, setDefaultOpen] = useState<boolean>(true)
+  useEffect(() => {
+    setMounted(true)
+    const savedState = getCookieValue("sidebar_state")
+    setDefaultOpen(savedState === null ? true : savedState === "true")
+  }, [])
 
   const getBreadcrumbs = () => {
     const paths = pathname.split("/").filter(Boolean)
@@ -142,6 +148,10 @@ export default function DashboardClientLayout({
   }
 
   const breadcrumbs = getBreadcrumbs()
+
+  if (!mounted) {
+    return null
+  }
 
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
