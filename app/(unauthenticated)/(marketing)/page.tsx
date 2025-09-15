@@ -6,8 +6,15 @@ import { HeroSection } from "./_components/sections/hero-section"
 import { PricingSection } from "./_components/sections/pricing-section"
 import { SocialProofSection } from "./_components/sections/social-proof-section"
 import { VideoSection } from "./_components/sections/video-section"
+import { auth } from "@clerk/nextjs/server"
+import { redirect } from "next/navigation"
 
-export default function MarketingPage() {
+export default async function MarketingPage() {
+  // If a user is already signed in, send them to the dashboard
+  const { userId } = await auth()
+  if (userId) {
+    redirect("/dashboard")
+  }
   return (
     <main className="min-h-screen">
       <HeroSection />

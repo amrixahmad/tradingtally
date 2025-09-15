@@ -3,6 +3,7 @@ import { openBillingPortal } from "@/actions/stripe"
 import { Button } from "@/components/ui/button"
 import { auth } from "@clerk/nextjs/server"
 import { AlertCircle, CreditCard } from "lucide-react"
+import { PricingButton } from "@/components/payments/pricing-button"
 
 export default async function BillingPage() {
   const { userId } = await auth()
@@ -21,7 +22,6 @@ export default async function BillingPage() {
   }
 
   const customerResponse = await getBillingDataByUserId(userId)
-  console.log(customerResponse)
 
   const customerData = customerResponse.customer
 
@@ -60,11 +60,32 @@ export default async function BillingPage() {
       </div>
 
       <div className="mt-6">
-        <form action={openBillingPortal}>
-          <Button type="submit" variant="outline">
-            Manage Billing
-          </Button>
-        </form>
+        {customerData.stripeCustomerId ? (
+          <form action={openBillingPortal}>
+            <Button type="submit" variant="outline">
+              Manage Billing
+            </Button>
+          </form>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <AlertCircle className="h-4 w-4" />
+              <span>No payment method on file yet. Upgrade to Pro to manage billing.</span>
+            </div>
+            {process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_PRO ? (
+              <PricingButton
+                paymentLink={process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK_PRO}
+                variant="default"
+              >
+                Upgrade to Pro
+              </PricingButton>
+            ) : (
+              <p className="text-sm text-destructive">
+                Missing NEXT_PUBLIC_STRIPE_PAYMENT_LINK_PRO. Set it in your environment to enable upgrades.
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

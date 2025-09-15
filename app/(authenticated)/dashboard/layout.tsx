@@ -14,13 +14,14 @@ export default async function DashboardLayout({
     redirect("/login")
   }
 
-  const customer = await getCustomerByUserId(user.id)
-
-  // Gate dashboard access for pro members only
-  // Store a message to show why they were redirected
-  if (!customer || customer.membership !== "pro") {
-    // Using searchParams to pass a message that can be read by client components
-    redirect("/?redirect=dashboard#pricing")
+  // Ensure a customer record exists; auto-provision free tier on first visit
+  let customer = await getCustomerByUserId(user.id)
+  if (!customer) {
+    const { createCustomer } = await import("@/actions/customers")
+    const result = await createCustomer(user.id)
+    if (result.isSuccess && result.data) {
+      customer = result.data
+    }
   }
 
   const userData = {
@@ -30,7 +31,7 @@ export default async function DashboardLayout({
         : user.firstName || user.username || "User",
     email: user.emailAddresses[0]?.emailAddress || "",
     avatar: user.imageUrl,
-    membership: customer.membership
+    membership: customer?.membership || "free"
   }
 
   return (
