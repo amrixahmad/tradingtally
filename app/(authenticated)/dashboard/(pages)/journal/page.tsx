@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { uploadScreenshot } from "@/actions/storage"
+import { extractTradeFromImage, type ExtractedTrade } from "@/actions/extract"
 
 export const dynamic = "force-dynamic"
 
@@ -56,8 +58,29 @@ async function createTradeAction(formData: FormData) {
   })
 }
 
-export default async function JournalPage() {
+export default async function JournalPage({
+  searchParams
+}: {
+  // In Next.js App Router, searchParams is a Promise in async components
+  searchParams: Promise<{ screenshot?: string }>
+}) {
   const trades = await listTradesByUser()
+
+  // If a screenshot was uploaded, try to extract fields via vision model
+  const params = await searchParams
+  const screenshotUrl = params?.screenshot
+  let extracted: ExtractedTrade | null = null
+  if (screenshotUrl) {
+    extracted = await extractTradeFromImage(screenshotUrl)
+  }
+
+  // Helper defaults for uncontrolled inputs
+  const def = <T,>(v: T | null | undefined, fallback: string = "") =>
+    v === null || v === undefined ? fallback : String(v)
+
+  const defaultTargets = extracted?.targets?.length
+    ? extracted.targets.join(", ")
+    : ""
 
   return (
     <div className="space-y-8">
@@ -66,25 +89,40 @@ export default async function JournalPage() {
         <p className="text-muted-foreground mt-2">Log trades quickly with minimal fields.</p>
       </div>
 
+      {/* Upload screenshot */}
+      <form action={uploadScreenshot} className="flex items-center gap-3 rounded-md border p-3">
+        <input
+          type="file"
+          name="file"
+          accept="image/*"
+          className="text-sm"
+          required
+        />
+        <Button type="submit" variant="outline">Upload Screenshot</Button>
+        {screenshotUrl && (
+          <span className="text-xs text-muted-foreground truncate">Uploaded ✓</span>
+        )}
+      </form>
+
       <form action={createTradeAction} className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <Label htmlFor="symbol">Symbol</Label>
-          <Input name="symbol" id="symbol" placeholder="EURUSD" required />
+          <Input name="symbol" id="symbol" placeholder="EURUSD" required defaultValue={def(extracted?.symbol)} />
         </div>
         <div>
           <Label htmlFor="direction">Direction</Label>
-          <select name="direction" id="direction" className="border-input bg-background text-foreground inline-flex h-10 w-full items-center justify-center rounded-md border px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" required>
+          <select name="direction" id="direction" className="border-input bg-background text-foreground inline-flex h-10 w-full items-center justify-center rounded-md border px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" required defaultValue={def(extracted?.direction)}>
             <option value="long">Long</option>
             <option value="short">Short</option>
           </select>
         </div>
         <div>
           <Label htmlFor="entry">Entry</Label>
-          <Input name="entry" id="entry" type="number" step="0.00001" required />
+          <Input name="entry" id="entry" type="number" step="0.00001" required defaultValue={def(extracted?.entry)} />
         </div>
         <div>
           <Label htmlFor="stop">Stop</Label>
-          <Input name="stop" id="stop" type="number" step="0.00001" required />
+          <Input name="stop" id="stop" type="number" step="0.00001" required defaultValue={def(extracted?.stop)} />
         </div>
         <div>
           <Label htmlFor="sizeRiskPct">Size (% risk)</Label>
@@ -92,7 +130,7 @@ export default async function JournalPage() {
         </div>
         <div>
           <Label htmlFor="targets">Targets (comma separated)</Label>
-          <Input name="targets" id="targets" placeholder="1.1050, 1.1100" />
+          <Input name="targets" id="targets" placeholder="1.1050, 1.1100" defaultValue={defaultTargets} />
         </div>
         <div className="md:col-span-2">
           <Label htmlFor="setupTags">Setup tag(s)</Label>
@@ -117,7 +155,7 @@ export default async function JournalPage() {
         </div>
         <div className="md:col-span-2">
           <Label htmlFor="screenshots">Screenshots (URLs, comma separated)</Label>
-          <Input name="screenshots" id="screenshots" placeholder="https://... , https://..." />
+          <Input name="screenshots" id="screenshots" placeholder="https://... , https://..." defaultValue={screenshotUrl ? screenshotUrl : ""} />
         </div>
 
         <div className="flex items-center gap-4 md:col-span-2">
@@ -135,9 +173,11 @@ export default async function JournalPage() {
           <Label htmlFor="lesson">One lesson</Label>
           <Textarea name="lesson" id="lesson" rows={2} />
         </div>
-
-        <div className="md:col-span-2">
+        <div className="md:col-span-2 flex items-center gap-3">
           <Button type="submit">Save Trade</Button>
+          {screenshotUrl && (
+            <span className="text-xs text-muted-foreground">Fields prefilled from screenshot where possible.</span>
+          )}
         </div>
       </form>
 

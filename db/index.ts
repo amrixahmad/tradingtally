@@ -6,6 +6,8 @@ import { trades } from "./schema/trades"
 
 config({ path: ".env.local" })
 
+// IMPORTANT: This must be the Postgres connection string, not the Supabase project URL.
+// Keep using DATABASE_URL here.
 const databaseUrl = process.env.DATABASE_URL
 if (!databaseUrl) {
   throw new Error("DATABASE_URL is not set")
