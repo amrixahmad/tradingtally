@@ -298,6 +298,29 @@ export const createCheckoutUrl = async (
       return { url: null, error: "Payment link URL is required" }
     }
 
+    // Safety: If the user already has an ongoing subscription that isn't
+    // scheduled to cancel, prevent creating a duplicate via checkout.
+    // They should manage or cancel from the Billing Portal instead.
+    const summary = await getUserSubscriptionSummary(userId)
+    const blockingStatuses: Stripe.Subscription.Status[] = [
+      "active",
+      "trialing",
+      "past_due",
+      "unpaid",
+      "paused"
+    ]
+    if (
+      summary &&
+      blockingStatuses.includes(summary.status) &&
+      summary.cancelAtPeriodEnd === false
+    ) {
+      return {
+        url: null,
+        error:
+          "You already have an active subscription. Manage it from the Billing page."
+      }
+    }
+
     // Add client_reference_id to the Stripe payment link
     const url = new URL(paymentLinkUrl)
     url.searchParams.set("client_reference_id", userId)
