@@ -21,20 +21,42 @@ export async function listTradesByUser(): Promise<SelectTrade[]> {
   }
 }
 
-export async function createTrade(values: Omit<InsertTrade, "id" | "userId" | "createdAt">) {
+// Accept a flexible payload from the form and normalize server-side
+export async function createTrade(values: any) {
   const { userId } = await auth()
   if (!userId) {
     return { ok: false as const, error: "Not authenticated" }
   }
 
   try {
-    const [row] = await db
-      .insert(trades)
-      .values({
-        ...values,
-        userId
-      })
-      .returning()
+    // Normalize arrays to string[] for Drizzle numeric[] columns (which infer as string[])
+    const toStringArray = (arr: unknown): string[] | null => {
+      if (!Array.isArray(arr)) return null
+      const mapped = arr
+        .map(v => (v == null ? null : typeof v === "string" ? v : String(v)))
+        .filter((v): v is string => typeof v === "string" && v.length > 0)
+      return mapped.length ? mapped : null
+    }
+
+    const insertValues: InsertTrade = {
+      userId,
+      symbol: values.symbol,
+      timeframe: values.timeframe ?? null,
+      position: values.position ?? null,
+      positionSizes: toStringArray(values.positionSizes) ?? null,
+      totalPositionSize: values.totalPositionSize ?? null,
+      entryPrices: toStringArray(values.entryPrices) ?? null,
+      stopLoss: values.stopLoss ?? null,
+      takeProfit: toStringArray(values.takeProfit) ?? null,
+      tradeDirection: values.tradeDirection ?? null,
+      additionalNotes: values.additionalNotes ?? null,
+      observation: values.observation ?? null,
+      profitLoss: values.profitLoss ?? null,
+      pips: values.pips ?? null,
+      screenshotUrl: values.screenshotUrl ?? null
+    }
+
+    const [row] = await db.insert(trades).values(insertValues).returning()
 
     return { ok: true as const, data: row }
   } catch (error) {

@@ -1,9 +1,13 @@
 import { listTradesByUser, createTrade } from "@/actions/trades"
+import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { uploadScreenshot } from "@/actions/storage"
+import ScreenshotUploadRow from "@/components/utility/screenshot-upload-row"
+import SaveToast from "@/components/utility/save-toast"
 import { extractTradeFromImage, type ExtractedTrade } from "@/actions/extract"
 
 export const dynamic = "force-dynamic"
@@ -12,50 +16,81 @@ async function createTradeAction(formData: FormData) {
   "use server"
 
   const symbol = String(formData.get("symbol") || "").trim()
-  const direction = String(formData.get("direction") || "").trim() as "long" | "short"
-  const entry = Number(formData.get("entry"))
-  const stop = Number(formData.get("stop"))
-  const sizeRiskPct = Number(formData.get("sizeRiskPct"))
-  const targets = String(formData.get("targets") || "").trim()
-  const setupTags = String(formData.get("setupTags") || "")
+  const timeframe = String(formData.get("timeframe") || "").trim() || null
+  const position = String(formData.get("position") || "").trim() || null
+  const totalPositionSize = formData.get("totalPositionSize")
+    ? Number(formData.get("totalPositionSize"))
+    : null
+  const positionSizes = String(formData.get("positionSizes") || "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(Number)
+    .filter(n => !Number.isNaN(n))
+  const entryPrices = String(formData.get("entryPrices") || "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(Number)
+    .filter(n => !Number.isNaN(n))
+  const stopLoss = formData.get("stopLoss") ? Number(formData.get("stopLoss")) : null
+  const takeProfit = String(formData.get("takeProfit") || "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(Number)
+    .filter(n => !Number.isNaN(n))
+  const additionalNotes = String(formData.get("additionalNotes") || "").trim() || null
+  const observation = String(formData.get("observation") || "").trim() || null
+  const profitLoss = formData.get("profitLoss") ? Number(formData.get("profitLoss")) : null
+  const pips = formData.get("pips") ? Number(formData.get("pips")) : null
+  // Allow only one screenshot URL for now
+  const firstScreenshot = String(formData.get("screenshots") || "")
     .split(",")
     .map(t => t.trim())
-    .filter(Boolean)
-  const thesis = String(formData.get("thesis") || "").trim()
-  const pl = formData.get("pl") ? Number(formData.get("pl")) : undefined
-  const pips = formData.get("pips") ? Number(formData.get("pips")) : undefined
-  const rMultiple = formData.get("rMultiple") ? Number(formData.get("rMultiple")) : undefined
-  const screenshots = String(formData.get("screenshots") || "")
-    .split(",")
-    .map(t => t.trim())
-    .filter(Boolean)
-  const rule1 = formData.get("rule1") === "on" ? true : undefined
-  const rule2 = formData.get("rule2") === "on" ? true : undefined
-  const rule3 = formData.get("rule3") === "on" ? true : undefined
-  const lesson = String(formData.get("lesson") || "").trim()
+    .filter(Boolean)[0]
+  const screenshots = firstScreenshot ? [firstScreenshot] : []
+  // Derive tradeDirection from position when not provided
+  const tradeDirection = position
+    ? position.toLowerCase() === "buy"
+      ? "bullish"
+      : position.toLowerCase() === "sell"
+      ? "bearish"
+      : null
+    : null
 
-  if (!symbol || !direction || Number.isNaN(entry) || Number.isNaN(stop) || Number.isNaN(sizeRiskPct)) {
-    throw new Error("Missing required fields: symbol, direction, entry, stop, size %")
+  if (!symbol) {
+    throw new Error("Missing required field: symbol")
+  }
+  if (entryPrices.length === 0) {
+    throw new Error("Provide at least one entry price")
   }
 
-  await createTrade({
+  const result = await createTrade({
     symbol,
-    direction,
-    entry,
-    stop,
-    sizeRiskPct,
-    targets,
-    setupTags,
-    thesis,
-    pl,
+    timeframe,
+    position,
+    positionSizes: positionSizes.length ? positionSizes : null,
+    totalPositionSize,
+    entryPrices,
+    stopLoss,
+    takeProfit,
+    tradeDirection,
+    additionalNotes,
+    observation,
+    profitLoss,
     pips,
-    rMultiple,
-    screenshots,
-    rule1,
-    rule2,
-    rule3,
-    lesson
+    screenshotUrl: screenshots[0] ?? null
   })
+
+  // Ensure the list below is refreshed without manual reload
+  revalidatePath("/dashboard/journal")
+
+  if ((result as any)?.ok) {
+    redirect("/dashboard/journal?saved=1")
+  } else {
+    redirect("/dashboard/journal?error=save_failed")
+  }
 }
 
 export default async function JournalPage({
@@ -78,101 +113,120 @@ export default async function JournalPage({
   const def = <T,>(v: T | null | undefined, fallback: string = "") =>
     v === null || v === undefined ? fallback : String(v)
 
-  const defaultTargets = extracted?.targets?.length
-    ? extracted.targets.join(", ")
+  const defaultTargets = extracted?.targets?.length ? extracted.targets.join(", ") : ""
+  const defaultPosition = extracted?.direction
+    ? extracted.direction === "long"
+      ? "buy"
+      : "sell"
     : ""
 
   return (
     <div className="space-y-8">
+      <SaveToast />
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Journal</h1>
         <p className="text-muted-foreground mt-2">Log trades quickly with minimal fields.</p>
       </div>
 
-      {/* Upload screenshot */}
-      <form action={uploadScreenshot} className="flex items-center gap-3 rounded-md border p-3">
-        <input
-          type="file"
-          name="file"
-          accept="image/*"
-          className="text-sm"
-          required
-        />
-        <Button type="submit" variant="outline">Upload Screenshot</Button>
-        {screenshotUrl && (
-          <span className="text-xs text-muted-foreground truncate">Uploaded ✓</span>
-        )}
+      {/* Upload screenshot (card at top, visually part of form) */}
+      <form action={uploadScreenshot} className="rounded-md border p-3">
+        <ScreenshotUploadRow screenshotUrl={screenshotUrl} />
       </form>
 
       <form action={createTradeAction} className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {/* Row 1: Symbol + Position */}
         <div>
           <Label htmlFor="symbol">Symbol</Label>
           <Input name="symbol" id="symbol" placeholder="EURUSD" required defaultValue={def(extracted?.symbol)} />
         </div>
         <div>
-          <Label htmlFor="direction">Direction</Label>
-          <select name="direction" id="direction" className="border-input bg-background text-foreground inline-flex h-10 w-full items-center justify-center rounded-md border px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" required defaultValue={def(extracted?.direction)}>
-            <option value="long">Long</option>
-            <option value="short">Short</option>
+          <Label htmlFor="position">Position</Label>
+          <select
+            name="position"
+            id="position"
+            className="border-input bg-background text-foreground inline-flex h-10 w-full items-center justify-center rounded-md border px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            defaultValue={defaultPosition}
+          >
+            <option value="">Select</option>
+            <option value="buy">Buy</option>
+            <option value="sell">Sell</option>
           </select>
         </div>
+        {/* Row 2: Timeframe + Total position size */}
         <div>
-          <Label htmlFor="entry">Entry</Label>
-          <Input name="entry" id="entry" type="number" step="0.00001" required defaultValue={def(extracted?.entry)} />
-        </div>
-        <div>
-          <Label htmlFor="stop">Stop</Label>
-          <Input name="stop" id="stop" type="number" step="0.00001" required defaultValue={def(extracted?.stop)} />
+          <Label htmlFor="timeframe">Timeframe</Label>
+          <Input name="timeframe" id="timeframe" placeholder="M1 / M15 / H1" defaultValue={def(extracted?.timeframe)} />
         </div>
         <div>
-          <Label htmlFor="sizeRiskPct">Size (% risk)</Label>
-          <Input name="sizeRiskPct" id="sizeRiskPct" type="number" step="0.01" required />
+          <Label htmlFor="totalPositionSize">Total position size (lots)</Label>
+          <Input name="totalPositionSize" id="totalPositionSize" type="number" step="0.0001" />
         </div>
         <div>
-          <Label htmlFor="targets">Targets (comma separated)</Label>
-          <Input name="targets" id="targets" placeholder="1.1050, 1.1100" defaultValue={defaultTargets} />
+          <Label htmlFor="entryPrices">Entry price(s)</Label>
+          <Input
+            name="entryPrices"
+            id="entryPrices"
+            placeholder="3634.83, 3628.43, ..."
+            defaultValue={Array.isArray(extracted?.entryList) && extracted.entryList.length
+              ? extracted.entryList.join(", ")
+              : def(extracted?.entry)}
+          />
         </div>
-        <div className="md:col-span-2">
-          <Label htmlFor="setupTags">Setup tag(s)</Label>
-          <Input name="setupTags" id="setupTags" placeholder="pullback, ny-open" />
+        <div>
+          <Label htmlFor="stopLoss">Stop loss</Label>
+          <Input name="stopLoss" id="stopLoss" type="number" step="0.00001" defaultValue={def(extracted?.stop)} />
         </div>
-        <div className="md:col-span-2">
-          <Label htmlFor="thesis">Brief thesis</Label>
-          <Textarea name="thesis" id="thesis" placeholder="Why this trade? Key context & invalidation." rows={3} />
+        <div>
+          <Label htmlFor="takeProfit">Take profit (comma separated)</Label>
+          <Input name="takeProfit" id="takeProfit" placeholder="3630.00, ..." defaultValue={defaultTargets} />
         </div>
+        <div>
+          <Label htmlFor="positionSizes">Position size(s) (comma separated)</Label>
+          <Input
+            name="positionSizes"
+            id="positionSizes"
+            placeholder="0.05, 0.05, 0.05"
+            defaultValue={Array.isArray(extracted?.positionSizes) && extracted.positionSizes.length
+              ? extracted.positionSizes.join(", ")
+              : ""}
+          />
+        </div>
+        {/* Collapsible Notes section */}
+        <details className="md:col-span-2 rounded-md border bg-card/50 p-3">
+          <summary className="cursor-pointer select-none text-sm font-medium">Notes</summary>
+          <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <Label htmlFor="additionalNotes">Additional notes</Label>
+              <Textarea
+                name="additionalNotes"
+                id="additionalNotes"
+                placeholder="Why this trade? Key context & invalidation."
+                rows={3}
+                defaultValue={extracted?.additionalNotes ?? ""}
+              />
+            </div>
+            <div>
+              <Label htmlFor="observation">Observation</Label>
+              <Textarea name="observation" id="observation" rows={3} defaultValue={def(extracted?.observation)} />
+            </div>
+          </div>
+        </details>
 
-        <div>
-          <Label htmlFor="pl">P/L</Label>
-          <Input name="pl" id="pl" type="number" step="0.01" />
+        {/* Results row: P/L & Pips */}
+        <div className="md:col-span-2 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <Label htmlFor="profitLoss">P/L</Label>
+            <Input name="profitLoss" id="profitLoss" type="number" step="0.01" />
+          </div>
+          <div>
+            <Label htmlFor="pips">Pips</Label>
+            <Input name="pips" id="pips" type="number" step="1" />
+          </div>
         </div>
-        <div>
-          <Label htmlFor="pips">Pips</Label>
-          <Input name="pips" id="pips" type="number" step="1" />
-        </div>
-        <div>
-          <Label htmlFor="rMultiple">R</Label>
-          <Input name="rMultiple" id="rMultiple" type="number" step="0.01" />
-        </div>
-        <div className="md:col-span-2">
-          <Label htmlFor="screenshots">Screenshots (URLs, comma separated)</Label>
-          <Input name="screenshots" id="screenshots" placeholder="https://... , https://..." defaultValue={screenshotUrl ? screenshotUrl : ""} />
-        </div>
+        {/* Hidden field to persist screenshot URL */}
+        <input type="hidden" name="screenshots" value={screenshotUrl ? screenshotUrl : ""} />
+        {/* Removed bottom large preview; inline preview appears in the upload card above */}
 
-        <div className="flex items-center gap-4 md:col-span-2">
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="rule1" /> Rule: Entry matches plan
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="rule2" /> Rule: Size within risk limit
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="rule3" /> Rule: Exit per plan
-          </label>
-        </div>
-        <div className="md:col-span-2">
-          <Label htmlFor="lesson">One lesson</Label>
-          <Textarea name="lesson" id="lesson" rows={2} />
-        </div>
         <div className="md:col-span-2 flex items-center gap-3">
           <Button type="submit">Save Trade</Button>
           {screenshotUrl && (
@@ -190,10 +244,10 @@ export default async function JournalPage({
             trades.map(t => (
               <div key={t.id} className="grid grid-cols-2 gap-2 border-b p-4 last:border-b-0 md:grid-cols-6">
                 <div className="font-medium">{t.symbol}</div>
-                <div className="uppercase text-xs">{t.direction}</div>
-                <div className="text-sm">Entry {String(t.entry)}</div>
-                <div className="text-sm">Stop {String(t.stop)}</div>
-                <div className="text-sm">R {t.rMultiple ?? "-"}</div>
+                <div className="uppercase text-xs">{t.position ?? "-"}</div>
+                <div className="text-sm">Entry {Array.isArray(t.entryPrices) && t.entryPrices.length ? String(t.entryPrices[0]) : "-"}</div>
+                <div className="text-sm">SL {t.stopLoss ?? "-"}</div>
+                <div className="text-sm">P/L {t.profitLoss ?? "-"}</div>
                 <div className="text-muted-foreground text-xs">{new Date(t.createdAt).toLocaleString()}</div>
               </div>
             ))
