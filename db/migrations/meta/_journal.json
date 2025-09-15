@@ -8,6 +8,13 @@
       "when": 1750112706924,
       "tag": "0000_flaky_vindicator",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1757917173054,
+      "tag": "0001_boring_demogoblin",
+      "breakpoints": true
     }
   ]
 }

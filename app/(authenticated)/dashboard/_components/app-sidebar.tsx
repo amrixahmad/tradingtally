@@ -51,6 +51,11 @@ export function AppSidebar({
     ],
     navMain: [
       {
+        title: "Journal",
+        url: "/dashboard/journal",
+        icon: Link
+      },
+      {
         title: "Nav Item 1",
         url: "#",
         icon: Link,
