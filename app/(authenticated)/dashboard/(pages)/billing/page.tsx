@@ -1,5 +1,5 @@
 import { getBillingDataByUserId } from "@/actions/customers"
-import { openBillingPortal } from "@/actions/stripe"
+import { getUserSubscriptionSummary, openBillingPortal } from "@/actions/stripe"
 import { Button } from "@/components/ui/button"
 import { auth } from "@clerk/nextjs/server"
 import { AlertCircle, CreditCard } from "lucide-react"
@@ -22,8 +22,8 @@ export default async function BillingPage() {
   }
 
   const customerResponse = await getBillingDataByUserId(userId)
-
   const customerData = customerResponse.customer
+  const subSummary = await getUserSubscriptionSummary(userId)
 
   if (!customerData) {
     return (
@@ -57,6 +57,44 @@ export default async function BillingPage() {
           Your current subscription plan is{" "}
           <span className="font-medium">{customerData.membership}</span>.
         </p>
+        {subSummary && (
+          <div className="mt-2 space-y-2 text-sm text-muted-foreground">
+            <div>
+              <span className="font-medium">Status:</span> {subSummary.status}
+            </div>
+            {subSummary.cancelAtPeriodEnd && (
+              <div className="bg-yellow-50 text-yellow-900 dark:bg-yellow-900/20 dark:text-yellow-200 rounded-md p-3">
+                <span className="font-medium">Cancellation scheduled.</span>{" "}
+                {typeof subSummary.currentPeriodEnd === "number" ? (
+                  <>
+                    Your subscription will end on {new Date(subSummary.currentPeriodEnd * 1000).toLocaleDateString()}.
+                  </>
+                ) : (
+                  <>
+                    Your subscription is set to cancel at the end of the current period.
+                  </>
+                )}
+              </div>
+            )}
+            {!subSummary.cancelAtPeriodEnd && typeof subSummary.currentPeriodEnd === "number" && (
+              <div>
+                Renews on {new Date(subSummary.currentPeriodEnd * 1000).toLocaleDateString()}
+              </div>
+            )}
+
+            {subSummary.paymentMethod && (
+              <div className="text-xs text-muted-foreground">
+                <span className="font-medium">Payment method:</span>{" "}
+                {subSummary.paymentMethod.brand?.toUpperCase()} •••• {subSummary.paymentMethod.last4}
+                {subSummary.paymentMethod.expMonth && subSummary.paymentMethod.expYear && (
+                  <span>
+                    {" "}exp {String(subSummary.paymentMethod.expMonth).padStart(2, "0")}/{subSummary.paymentMethod.expYear}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mt-6">

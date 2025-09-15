@@ -34,6 +34,116 @@ const getMembershipStatus = (
   }
 }
 
+// Return a concise summary of the current user's subscription, if any
+export type SubscriptionSummary = {
+  status: Stripe.Subscription.Status
+  cancelAtPeriodEnd: boolean
+  currentPeriodEnd: number | null // epoch seconds
+  paymentMethod: {
+    brand: string | null
+    last4: string | null
+    expMonth: number | null
+    expYear: number | null
+  } | null
+}
+
+export const getUserSubscriptionSummary = async (
+  userId: string
+): Promise<SubscriptionSummary | null> => {
+  try {
+    if (!userId) return null
+
+    const customer = await getCustomerByUserId(userId)
+    if (!customer?.stripeCustomerId) return null
+
+    // Preferred path: use stored subscription id if available
+    let subscriptionResponse: Stripe.Response<Stripe.Subscription> | null = null
+    if (customer.stripeSubscriptionId) {
+      try {
+        subscriptionResponse = await stripe.subscriptions.retrieve(
+          customer.stripeSubscriptionId,
+          { expand: ["default_payment_method"] }
+        )
+      } catch (err) {
+        // Fall through to listing by customer if the stored ID is stale
+        subscriptionResponse = null
+      }
+    }
+
+    // Fallback: find most recent active (or trialing) subscription for the customer
+    if (!subscriptionResponse) {
+      const list = await stripe.subscriptions.list({
+        customer: customer.stripeCustomerId,
+        status: "all",
+        limit: 3,
+        expand: ["data.default_payment_method"]
+      })
+
+      // Pick the most relevant subscription: active > trialing > past_due > unpaid > canceled
+      const preferredOrder: Record<string, number> = {
+        active: 0,
+        trialing: 1,
+        past_due: 2,
+        unpaid: 3,
+        paused: 4,
+        incomplete: 5,
+        incomplete_expired: 6,
+        canceled: 7
+      }
+      const best = [...list.data].sort(
+        (a, b) => (preferredOrder[a.status] ?? 99) - (preferredOrder[b.status] ?? 99)
+      )[0]
+
+      if (!best) return null
+      subscriptionResponse = best as unknown as Stripe.Response<Stripe.Subscription>
+
+      // If DB has no subscription id or it's different, persist the latest one
+      if (!customer.stripeSubscriptionId || customer.stripeSubscriptionId !== best.id) {
+        try {
+          await updateCustomerByUserId(userId, {
+            stripeSubscriptionId: best.id
+          })
+        } catch (e) {
+          // Non-fatal; keep rendering
+        }
+      }
+    }
+
+    type SubscriptionLite = {
+      status: Stripe.Subscription.Status
+      cancel_at_period_end?: boolean
+      current_period_end?: number
+      default_payment_method?: Stripe.PaymentMethod | string | null
+    }
+
+    const subscription = subscriptionResponse as unknown as SubscriptionLite
+
+    let pm: SubscriptionSummary["paymentMethod"] = null
+    const dpm = subscription.default_payment_method as
+      | Stripe.PaymentMethod
+      | string
+      | null
+    if (dpm && typeof dpm !== "string" && dpm.card) {
+      pm = {
+        brand: dpm.card.brand || null,
+        last4: dpm.card.last4 || null,
+        expMonth: dpm.card.exp_month || null,
+        expYear: dpm.card.exp_year || null
+      }
+    }
+
+    return {
+      status: subscription.status,
+      cancelAtPeriodEnd: Boolean(subscription.cancel_at_period_end),
+      currentPeriodEnd: subscription.current_period_end ?? null,
+      paymentMethod: pm
+    }
+  } catch (error) {
+    console.error("Error fetching subscription summary:", error)
+    return null
+  }
+}
+
 // Create a Stripe Billing Portal session and redirect the user there
 export const openBillingPortal = async () => {
   try {

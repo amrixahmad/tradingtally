@@ -8,11 +8,16 @@ import { eq } from "drizzle-orm"
 export async function getCustomerByUserId(
   userId: string
 ): Promise<SelectCustomer | null> {
-  const customer = await db.query.customers.findFirst({
-    where: eq(customers.userId, userId)
-  })
+  try {
+    const customer = await db.query.customers.findFirst({
+      where: eq(customers.userId, userId)
+    })
 
-  return customer || null
+    return customer || null
+  } catch (error) {
+    console.error("Error fetching customer by userId:", error)
+    return null
+  }
 }
 
 export async function getBillingDataByUserId(userId: string): Promise<{
@@ -23,20 +28,30 @@ export async function getBillingDataByUserId(userId: string): Promise<{
   // Get Clerk user data
   const user = await currentUser()
 
-  // Get profile to fetch Stripe customer ID
-  const customer = await db.query.customers.findFirst({
-    where: eq(customers.userId, userId)
-  })
+  try {
+    // Get profile to fetch Stripe customer ID
+    const customer = await db.query.customers.findFirst({
+      where: eq(customers.userId, userId)
+    })
 
-  // Get Stripe email if it exists
-  const stripeEmail = customer?.stripeCustomerId
-    ? user?.emailAddresses[0]?.emailAddress || null
-    : null
+    // Get Stripe email if it exists
+    const stripeEmail = customer?.stripeCustomerId
+      ? user?.emailAddresses[0]?.emailAddress || null
+      : null
 
-  return {
-    customer: customer || null,
-    clerkEmail: user?.emailAddresses[0]?.emailAddress || null,
-    stripeEmail
+    return {
+      customer: customer || null,
+      clerkEmail: user?.emailAddresses[0]?.emailAddress || null,
+      stripeEmail
+    }
+  } catch (error) {
+    console.error("Error fetching billing data by userId:", error)
+    // Degrade gracefully: return Clerk info and no customer
+    return {
+      customer: null,
+      clerkEmail: user?.emailAddresses[0]?.emailAddress || null,
+      stripeEmail: null
+    }
   }
 }
 

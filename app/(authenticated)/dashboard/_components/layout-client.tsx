@@ -14,8 +14,8 @@ import {
   SidebarProvider,
   SidebarTrigger
 } from "@/components/ui/sidebar"
-import { usePathname } from "next/navigation"
 import { AppSidebar } from "./app-sidebar"
+import { useEffect, useState } from "react"
 
 export default function DashboardClientLayout({
   children,
@@ -29,7 +29,14 @@ export default function DashboardClientLayout({
     membership: string
   }
 }) {
-  const pathname = usePathname()
+  // Derive pathname without relying on next/navigation hooks to avoid
+  // occasional invalid hook call errors in certain edge HMR states
+  const [pathname, setPathname] = useState<string>("/dashboard")
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setPathname(window.location.pathname)
+    }
+  }, [])
 
   // Read the sidebar state from cookie on initial load
   const getCookieValue = (name: string) => {
