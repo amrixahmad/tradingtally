@@ -27,7 +27,7 @@ export default function SignUpPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
             >
-              Build your next big idea
+              Create your Trading Tally account
             </motion.h1>
             <motion.p
               className="text-muted-foreground text-lg"
@@ -35,8 +35,7 @@ export default function SignUpPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
             >
-              Get instant access to a production-ready app template with
-              everything you need to launch quickly.
+              Journal trades faster, spot patterns, and track performance with clarity.
             </motion.p>
           </div>
 
@@ -195,7 +194,7 @@ export default function SignUpPage() {
                   href="/login"
                   className="text-primary font-medium hover:underline"
                 >
-                  Sign in here
+                  Sign in to Trading Tally
                 </Link>
               </motion.span>
             </p>

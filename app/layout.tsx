@@ -19,8 +19,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Mckay's App Template",
-  description: "The easiest way to start your next project."
+  title: "Trading Tally",
+  description: "Trading Tally — simple, fast trade journaling with insights."
 }
 
 export default function RootLayout({

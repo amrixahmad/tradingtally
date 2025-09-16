@@ -28,7 +28,7 @@ export default function LoginPage() {
               transition={{ duration: 0.5 }}
             >
               <span className="bg-primary/10 text-primary rounded-full px-3 py-1 text-xs font-medium">
-                Welcome back!
+                Welcome back to Trading Tally
               </span>
             </motion.div>
             <motion.h1
@@ -37,7 +37,7 @@ export default function LoginPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
             >
-              Continue building
+              Journal smarter with
               <motion.span
                 className="from-brand-primary to-brand-secondary mt-2 block bg-gradient-to-r bg-clip-text text-transparent"
                 animate={{
@@ -52,7 +52,7 @@ export default function LoginPage() {
                   backgroundSize: "200% 200%"
                 }}
               >
-                amazing products
+                Trading Tally
               </motion.span>
             </motion.h1>
             <motion.p
@@ -61,7 +61,7 @@ export default function LoginPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
             >
-              Pick up right where you left off with your projects.
+              Pick up where you left off tracking and improving your trades.
             </motion.p>
           </div>
 
@@ -211,9 +211,7 @@ export default function LoginPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
           >
-            <h2 className="mb-2 text-2xl font-semibold">
-              Sign in to your account
-            </h2>
+            <h2 className="mb-2 text-2xl font-semibold">Sign in to Trading Tally</h2>
             <p className="text-muted-foreground text-sm">
               Don't have an account?{" "}
               <motion.span
@@ -224,7 +222,7 @@ export default function LoginPage() {
                   href="/signup"
                   className="text-primary font-medium transition-colors hover:underline"
                 >
-                  Start building for free
+                  Create a free account
                   <ArrowRight className="ml-1 inline h-3 w-3" />
                 </Link>
               </motion.span>
