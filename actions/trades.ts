@@ -21,6 +21,57 @@ export async function listTradesByUser(): Promise<SelectTrade[]> {
   }
 }
 
+// Update a single trade's editable fields (numbers already rounded in caller)
+export async function updateTrade(
+  id: string,
+  values: {
+    entryPrices?: number[] | null
+    stopLoss?: number | null
+    takeProfit?: number[] | null
+    positionSizes?: number[] | null
+    totalPositionSize?: number | null
+    profitLoss?: number | null
+    additionalNotes?: string | null
+    observation?: string | null
+  }
+) {
+  const { userId } = await auth()
+  if (!userId) {
+    return { ok: false as const, error: "Not authenticated" }
+  }
+
+  const toStringArray = (arr: number[] | null | undefined): string[] | null => {
+    if (!arr || arr.length === 0) return null
+    return arr.map(n => String(n))
+  }
+  const toStringOrNull = (n: number | null | undefined): string | null =>
+    n == null ? null : String(n)
+
+  try {
+    const payload: Partial<InsertTrade> = {
+      entryPrices: toStringArray(values.entryPrices),
+      stopLoss: toStringOrNull(values.stopLoss) as unknown as any,
+      takeProfit: toStringArray(values.takeProfit),
+      positionSizes: toStringArray(values.positionSizes),
+      totalPositionSize: toStringOrNull(values.totalPositionSize) as unknown as any,
+      profitLoss: toStringOrNull(values.profitLoss) as unknown as any,
+      additionalNotes: values.additionalNotes ?? null,
+      observation: values.observation ?? null
+    }
+
+    const [row] = await db
+      .update(trades)
+      .set(payload)
+      .where(and(eq(trades.userId, userId), eq(trades.id, id)))
+      .returning()
+
+    return { ok: true as const, data: row }
+  } catch (error) {
+    console.error("Error updating trade:", error)
+    return { ok: false as const, error: "Failed to update trade" }
+  }
+}
+
 // (pagination handled in page via slicing for now)
 
 // Accept a flexible payload from the form and normalize server-side
