@@ -64,3 +64,20 @@ export async function createTrade(values: any) {
     return { ok: false as const, error: "Failed to create trade" }
   }
 }
+
+// Fetch a single trade by id (scoped to current user)
+export async function getTradeById(id: string): Promise<SelectTrade | null> {
+  const { userId } = await auth()
+  if (!userId) return null
+  try {
+    const rows = await db
+      .select()
+      .from(trades)
+      .where(and(eq(trades.userId, userId), eq(trades.id, id)))
+      .limit(1)
+    return rows[0] ?? null
+  } catch (error) {
+    console.error("Error fetching trade by id:", error)
+    return null
+  }
+}

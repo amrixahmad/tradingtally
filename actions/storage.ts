@@ -41,6 +41,6 @@ export async function uploadScreenshot(formData: FormData) {
     throw new Error("Failed to create signed URL")
   }
 
-  const params = new URLSearchParams({ screenshot: signed.signedUrl })
+  const params = new URLSearchParams({ screenshot: signed.signedUrl, screenshotPath: key })
   redirect(`/dashboard/journal?${params.toString()}`)
 }

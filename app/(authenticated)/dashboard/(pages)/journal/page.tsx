@@ -97,13 +97,14 @@ export default async function JournalPage({
   searchParams
 }: {
   // In Next.js App Router, searchParams is a Promise in async components
-  searchParams: Promise<{ screenshot?: string }>
+  searchParams: Promise<{ screenshot?: string; screenshotPath?: string }>
 }) {
   const trades = await listTradesByUser()
 
   // If a screenshot was uploaded, try to extract fields via vision model
   const params = await searchParams
   const screenshotUrl = params?.screenshot
+  const screenshotPath = params?.screenshotPath
   let extracted: ExtractedTrade | null = null
   if (screenshotUrl) {
     extracted = await extractTradeFromImage(screenshotUrl)
@@ -121,37 +122,39 @@ export default async function JournalPage({
     : ""
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <SaveToast />
-      <div>
+      <div className="mx-auto w-full max-w-5xl">
         <h1 className="text-3xl font-bold tracking-tight">Journal</h1>
         <p className="text-muted-foreground mt-2">Log trades quickly with minimal fields.</p>
       </div>
 
-      {/* Upload screenshot (card at top, visually part of form) */}
-      <form action={uploadScreenshot} className="rounded-md border p-3">
-        <ScreenshotUploadRow screenshotUrl={screenshotUrl} />
-      </form>
+      {/* Narrow, centered editor column */}
+      <div className="mx-auto w-full max-w-3xl space-y-4">
+        {/* Upload screenshot (card at top, visually part of form) */}
+        <form action={uploadScreenshot} className="rounded-md border p-3">
+          <ScreenshotUploadRow screenshotUrl={screenshotUrl} />
+        </form>
 
-      <form action={createTradeAction} className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {/* Row 1: Symbol + Position */}
-        <div>
-          <Label htmlFor="symbol">Symbol</Label>
-          <Input name="symbol" id="symbol" placeholder="EURUSD" required defaultValue={def(extracted?.symbol)} />
-        </div>
-        <div>
-          <Label htmlFor="position">Position</Label>
-          <select
-            name="position"
-            id="position"
-            className="border-input bg-background text-foreground inline-flex h-10 w-full items-center justify-center rounded-md border px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            defaultValue={defaultPosition}
-          >
-            <option value="">Select</option>
-            <option value="buy">Buy</option>
-            <option value="sell">Sell</option>
-          </select>
-        </div>
+        <form action={createTradeAction} className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {/* Row 1: Symbol + Position */}
+          <div>
+            <Label htmlFor="symbol">Symbol</Label>
+            <Input name="symbol" id="symbol" placeholder="EURUSD" required defaultValue={def(extracted?.symbol)} />
+          </div>
+          <div>
+            <Label htmlFor="position">Position</Label>
+            <select
+              name="position"
+              id="position"
+              className="border-input bg-background text-foreground inline-flex h-10 w-full items-center justify-center rounded-md border px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              defaultValue={defaultPosition}
+            >
+              <option value="">Select</option>
+              <option value="buy">Buy</option>
+              <option value="sell">Sell</option>
+            </select>
+          </div>
         {/* Row 2: Timeframe + Total position size */}
         <div>
           <Label htmlFor="timeframe">Timeframe</Label>
@@ -223,33 +226,34 @@ export default async function JournalPage({
             <Input name="pips" id="pips" type="number" step="1" />
           </div>
         </div>
-        {/* Hidden field to persist screenshot URL */}
-        <input type="hidden" name="screenshots" value={screenshotUrl ? screenshotUrl : ""} />
+        {/* Hidden field to persist screenshot path (stable); fall back to signed URL if path missing */}
+        <input type="hidden" name="screenshots" value={screenshotPath ? screenshotPath : (screenshotUrl ? screenshotUrl : "")} />
         {/* Removed bottom large preview; inline preview appears in the upload card above */}
 
-        <div className="md:col-span-2 flex items-center gap-3">
-          <Button type="submit">Save Trade</Button>
-          {screenshotUrl && (
-            <span className="text-xs text-muted-foreground">Fields prefilled from screenshot where possible.</span>
-          )}
-        </div>
-      </form>
+          <div className="md:col-span-2 flex items-center gap-3">
+            <Button type="submit">Save Trade</Button>
+            {screenshotUrl && (
+              <span className="text-xs text-muted-foreground">Fields prefilled from screenshot where possible.</span>
+            )}
+          </div>
+        </form>
+      </div>
 
-      <div className="space-y-3">
+      <div className="mx-auto w-full max-w-5xl space-y-3">
         <h2 className="text-xl font-semibold">Recent trades</h2>
         <div className="divide-border rounded-md border">
           {trades.length === 0 ? (
             <div className="text-muted-foreground p-4 text-sm">No trades yet.</div>
           ) : (
             trades.map(t => (
-              <div key={t.id} className="grid grid-cols-2 gap-2 border-b p-4 last:border-b-0 md:grid-cols-6">
+              <a key={t.id} href={`/dashboard/journal/${t.id}`} className="grid grid-cols-2 gap-2 border-b p-4 last:border-b-0 transition-colors hover:bg-accent/40 md:grid-cols-6">
                 <div className="font-medium">{t.symbol}</div>
                 <div className="uppercase text-xs">{t.position ?? "-"}</div>
                 <div className="text-sm">Entry {Array.isArray(t.entryPrices) && t.entryPrices.length ? String(t.entryPrices[0]) : "-"}</div>
                 <div className="text-sm">SL {t.stopLoss ?? "-"}</div>
                 <div className="text-sm">P/L {t.profitLoss ?? "-"}</div>
                 <div className="text-muted-foreground text-xs">{new Date(t.createdAt).toLocaleString()}</div>
-              </div>
+              </a>
             ))
           )}
         </div>
