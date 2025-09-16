@@ -66,19 +66,23 @@ async function createTradeAction(formData: FormData) {
     throw new Error("Provide at least one entry price")
   }
 
+  // Round all numeric values to 2 decimals before storing for consistency in display
+  const r2 = (n: number | null) => (n == null ? null : Math.round(n * 100) / 100)
+  const r2arr = (arr: number[]) => arr.map(n => Math.round(n * 100) / 100)
+
   const result = await createTrade({
     symbol,
     timeframe,
     position,
-    positionSizes: positionSizes.length ? positionSizes : null,
-    totalPositionSize,
-    entryPrices,
-    stopLoss,
-    takeProfit,
+    positionSizes: positionSizes.length ? r2arr(positionSizes) : null,
+    totalPositionSize: r2(totalPositionSize),
+    entryPrices: r2arr(entryPrices),
+    stopLoss: r2(stopLoss),
+    takeProfit: r2arr(takeProfit),
     tradeDirection,
     additionalNotes,
     observation,
-    profitLoss,
+    profitLoss: r2(profitLoss),
     pips,
     screenshotUrl: screenshots[0] ?? null
   })
@@ -252,9 +256,9 @@ export default async function JournalPage({
               <a key={t.id} href={`/dashboard/journal/${t.id}`} className="grid grid-cols-2 gap-2 border-b p-4 last:border-b-0 transition-colors hover:bg-accent/40 md:grid-cols-6">
                 <div className="font-medium">{t.symbol}</div>
                 <div className="uppercase text-xs">{t.position ?? "-"}</div>
-                <div className="text-sm">Entry {Array.isArray(t.entryPrices) && t.entryPrices.length ? String(t.entryPrices[0]) : "-"}</div>
-                <div className="text-sm">SL {t.stopLoss ?? "-"}</div>
-                <div className="text-sm">P/L {t.profitLoss ?? "-"}</div>
+                <div className="text-sm">Entry {Array.isArray(t.entryPrices) && t.entryPrices.length ? Number(t.entryPrices[0] as unknown as number).toFixed(2) : "-"}</div>
+                <div className="text-sm">SL {t.stopLoss != null ? Number(t.stopLoss as unknown as number).toFixed(2) : "-"}</div>
+                <div className="text-sm">P/L {t.profitLoss != null ? Number(t.profitLoss as unknown as number).toFixed(2) : "-"}</div>
                 <div className="text-muted-foreground text-xs">{new Date(t.createdAt).toLocaleString()}</div>
               </a>
             ))

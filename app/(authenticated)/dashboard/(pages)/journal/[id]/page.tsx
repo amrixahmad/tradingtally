@@ -24,7 +24,13 @@ export default async function JournalEntryPage({ params }: { params: Promise<{ i
     )
   }
 
-  const fmtList = (arr: unknown[] | null) => Array.isArray(arr) && arr.length ? arr.join(", ") : "-"
+  const fmtNum = (val: unknown): string => {
+    if (val === null || val === undefined) return "-"
+    const n = Number(val)
+    return Number.isFinite(n) ? n.toFixed(2) : String(val)
+  }
+  const fmtListNum = (arr: unknown[] | null): string =>
+    Array.isArray(arr) && arr.length ? arr.map(v => fmtNum(v)).join(", ") : "-"
 
   // Resolve a fresh signed URL for the screenshot if we stored a path or the previous
   // signed URL expired. We try to parse the key out of an existing signed URL too.
@@ -78,27 +84,27 @@ export default async function JournalEntryPage({ params }: { params: Promise<{ i
               </div>
               <div>
                 <div className="text-muted-foreground">Entry price(s)</div>
-                <div>{fmtList(trade.entryPrices as unknown as any[])}</div>
+                <div>{fmtListNum(trade.entryPrices as unknown as unknown[])}</div>
               </div>
               <div>
                 <div className="text-muted-foreground">Stop loss</div>
-                <div>{trade.stopLoss ?? "-"}</div>
+                <div>{fmtNum(trade.stopLoss)}</div>
               </div>
               <div>
                 <div className="text-muted-foreground">Take profit</div>
-                <div>{fmtList(trade.takeProfit as unknown as any[])}</div>
+                <div>{fmtListNum(trade.takeProfit as unknown as unknown[])}</div>
               </div>
               <div>
                 <div className="text-muted-foreground">Position size(s)</div>
-                <div>{fmtList(trade.positionSizes as unknown as any[])}</div>
+                <div>{fmtListNum(trade.positionSizes as unknown as unknown[])}</div>
               </div>
               <div>
                 <div className="text-muted-foreground">Total size</div>
-                <div>{trade.totalPositionSize ?? "-"}</div>
+                <div>{fmtNum(trade.totalPositionSize)}</div>
               </div>
               <div>
                 <div className="text-muted-foreground">P/L</div>
-                <div>{trade.profitLoss ?? "-"} {trade.pips != null ? `(${trade.pips} pips)` : ""}</div>
+                <div>{fmtNum(trade.profitLoss)} {trade.pips != null ? `(${trade.pips} pips)` : ""}</div>
               </div>
             </div>
           </div>
