@@ -91,7 +91,7 @@ async function createTradeAction(formData: FormData) {
   // Ensure the list below is refreshed without manual reload
   revalidatePath("/dashboard/journal")
 
-  if ((result as any)?.ok) {
+  if (result && typeof result === "object" && "ok" in result && (result as { ok: boolean }).ok) {
     redirect("/dashboard/journal?saved=1")
   } else {
     redirect("/dashboard/journal?error=save_failed")
