@@ -1,6 +1,6 @@
 "use client"
 
-import { Link, Settings2, User, Users } from "lucide-react"
+import { Link, Settings2, User, Users, CalendarDays, LayoutDashboard } from "lucide-react"
 import * as React from "react"
 
 import {
@@ -51,35 +51,19 @@ export function AppSidebar({
     ],
     navMain: [
       {
+        title: "Overview",
+        url: "/dashboard/overview",
+        icon: LayoutDashboard
+      },
+      {
         title: "Journal",
         url: "/dashboard/journal",
         icon: Link
       },
       {
-        title: "Nav Item 1",
-        url: "#",
-        icon: Link,
-        items: [
-          {
-            title: "Sub Item 1",
-            url: "/dashboard/nav-item-1"
-          },
-          {
-            title: "Sub Item 2",
-            url: "/dashboard/nav-item-2"
-          }
-        ]
-      },
-      {
-        title: "Nav Item 2",
-        url: "#",
-        icon: Link,
-        items: [
-          {
-            title: "Sub Item 1",
-            url: "/dashboard/nav-item-1"
-          }
-        ]
+        title: "Calendar",
+        url: "/dashboard/calendar",
+        icon: CalendarDays
       },
       {
         title: "Settings",
