@@ -61,8 +61,25 @@ export async function extractTradeFromImage(signedUrl: string): Promise<Extracte
 
   const client = new OpenAI({ apiKey })
 
+  // Download the image server-side and send as a data URL to avoid external fetch timeouts
+  async function toDataUrl(url: string): Promise<string> {
+    try {
+      const res = await fetch(url)
+      if (!res.ok) throw new Error(`Fetch image failed: ${res.status}`)
+      const contentType = res.headers.get("content-type") || "image/jpeg"
+      const buf = await res.arrayBuffer()
+      const b64 = Buffer.from(buf).toString("base64")
+      return `data:${contentType};base64,${b64}`
+    } catch (e) {
+      console.error("Failed to fetch image for extraction:", e)
+      throw e
+    }
+  }
+
   try {
-    // Use the Responses API for multimodal extraction with 4.1 models
+    const dataUrl = await toDataUrl(signedUrl)
+
+    // Use the Responses API for multimodal extraction with 4.1 models. Send inline data URL to avoid remote fetch.
     const resp = await client.responses.create({
       model: "gpt-4.1-nano",
       input: [
@@ -77,7 +94,7 @@ export async function extractTradeFromImage(signedUrl: string): Promise<Extracte
               type: "input_text",
               text: "Extract information from the image provided based on the system instructions and return ONLY JSON."
             },
-            { type: "input_image", image_url: signedUrl, detail: "auto" }
+            { type: "input_image", image_url: dataUrl, detail: "auto" }
           ]
         }
       ],

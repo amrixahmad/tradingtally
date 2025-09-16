@@ -50,10 +50,26 @@ export default function ScreenshotUploadRow({ screenshotUrl }: Props) {
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       className={[
-        "relative rounded-md border border-dashed p-6 md:p-8",
+        "relative rounded-md border border-dashed p-6 md:p-8 cursor-pointer hover:bg-accent/20 focus:outline-none focus:ring-2 focus:ring-accent",
         dragOver ? "bg-accent/30 border-accent" : "bg-background",
       ].join(" ")}
+      onClick={e => {
+        if (pending || dragOver || modalOpen) return
+        // If the click originated from a <label htmlFor="screenshot-file">,
+        // let the label trigger the input and avoid double opening.
+        const target = e.target as HTMLElement
+        if (target.closest('label[for="screenshot-file"]')) return
+        inputRef.current?.click()
+      }}
+      onKeyDown={e => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          if (!pending && !dragOver && !modalOpen) inputRef.current?.click()
+        }
+      }}
       onDragOver={e => {
         e.preventDefault()
         setDragOver(true)
@@ -106,26 +122,47 @@ export default function ScreenshotUploadRow({ screenshotUrl }: Props) {
             )}
           </div>
         ) : (
-          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-muted">
+          <label
+            htmlFor="screenshot-file"
+            className="flex h-24 w-24 items-center justify-center rounded-full bg-muted cursor-pointer"
+            onClick={e => e.stopPropagation()}
+          >
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="7 10 12 5 17 10"/>
               <line x1="12" y1="5" x2="12" y2="19"/>
             </svg>
-          </div>
+          </label>
         )}
 
         <div className="text-sm">
           Drag and drop file here or
           {" "}
-          <label htmlFor="screenshot-file" className="underline underline-offset-2 hover:text-foreground cursor-pointer">Choose file</label>
+          <label
+            htmlFor="screenshot-file"
+            className="underline underline-offset-2 hover:text-foreground cursor-pointer"
+            onClick={e => e.stopPropagation()}
+          >
+            Choose file
+          </label>
         </div>
         <div className="text-muted-foreground text-xs">Supported formats: PNG, JPG • Maximum size: 25MB</div>
 
         {error && <div className="text-xs text-red-600">{error}</div>}
 
         <div className="flex items-center gap-2">
-          <Button type="submit" variant="outline" disabled={pending}>
+          <Button
+            type="submit"
+            variant="outline"
+            disabled={pending}
+            onClick={e => {
+              const hasFile = !!inputRef.current?.files && inputRef.current.files.length > 0
+              if (!hasFile) {
+                e.preventDefault()
+                inputRef.current?.click()
+              }
+            }}
+          >
             {pending ? (
               <span className="inline-flex items-center gap-2">
                 <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
