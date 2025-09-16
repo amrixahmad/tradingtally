@@ -1,4 +1,5 @@
 import { listTradesByUserPaged, createTrade } from "@/actions/trades"
+import Link from "next/link"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -252,16 +253,40 @@ export default async function JournalPage({
           {trades.length === 0 ? (
             <div className="text-muted-foreground p-4 text-sm">No trades yet.</div>
           ) : (
-            trades.map(t => (
-              <a key={t.id} href={`/dashboard/journal/${t.id}`} className="grid grid-cols-2 gap-2 border-b p-4 last:border-b-0 transition-colors hover:bg-accent/40 md:grid-cols-6">
-                <div className="font-medium">{t.symbol}</div>
-                <div className="uppercase text-xs">{t.position ?? "-"}</div>
-                <div className="text-sm">Entry {Array.isArray(t.entryPrices) && t.entryPrices.length ? Number(t.entryPrices[0] as unknown as number).toFixed(2) : "-"}</div>
-                <div className="text-sm">SL {t.stopLoss != null ? Number(t.stopLoss as unknown as number).toFixed(2) : "-"}</div>
-                <div className="text-sm">P/L {t.profitLoss != null ? Number(t.profitLoss as unknown as number).toFixed(2) : "-"}</div>
-                <div className="text-muted-foreground text-xs">{new Date(t.createdAt).toLocaleString()}</div>
-              </a>
-            ))
+            <>
+              {/* Header row */}
+              <div className="grid grid-cols-2 gap-2 border-b bg-muted/30 p-3 text-xs font-medium text-muted-foreground md:grid-cols-6">
+                <div>Symbol</div>
+                <div>Position</div>
+                <div className="text-right">Entry</div>
+                <div className="text-right">Position size</div>
+                <div className="text-right">P/L</div>
+                <div>Date</div>
+              </div>
+              {trades.map(t => {
+                const posSize =
+                  (t.totalPositionSize as unknown as number | null) ??
+                  (Array.isArray(t.positionSizes) && t.positionSizes.length
+                    ? (t.positionSizes[0] as unknown as number)
+                    : null)
+                return (
+                  <Link
+                    key={t.id}
+                    href={`/dashboard/journal/${t.id}`}
+                    className="grid grid-cols-2 gap-2 border-b p-4 last:border-b-0 transition-colors hover:bg-accent/40 md:grid-cols-6"
+                  >
+                    <div className="font-medium">{t.symbol}</div>
+                    <div className="uppercase text-xs">{t.position ?? "-"}</div>
+                    <div className="text-right text-sm">
+                      Entry {Array.isArray(t.entryPrices) && t.entryPrices.length ? Number(t.entryPrices[0] as unknown as number).toFixed(2) : "-"}
+                    </div>
+                    <div className="text-right text-sm">{posSize != null ? Number(posSize).toFixed(2) : "-"}</div>
+                    <div className="text-right text-sm">{t.profitLoss != null ? Number(t.profitLoss as unknown as number).toFixed(2) : "-"}</div>
+                    <div className="text-muted-foreground text-xs">{new Date(t.createdAt).toLocaleString()}</div>
+                  </Link>
+                )
+              })}
+            </>
           )}
         </div>
         {/* Pagination controls */}
