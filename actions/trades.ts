@@ -1,4 +1,4 @@
-"use server"
+// Server-only utilities
 
 import { db } from "@/db"
 import { trades, type InsertTrade, type SelectTrade } from "@/db/schema/trades"
@@ -20,6 +20,8 @@ export async function listTradesByUser(): Promise<SelectTrade[]> {
     return []
   }
 }
+
+// (pagination handled in page via slicing for now)
 
 // Accept a flexible payload from the form and normalize server-side
 export async function createTrade(values: any) {
@@ -79,5 +81,40 @@ export async function getTradeById(id: string): Promise<SelectTrade | null> {
   } catch (error) {
     console.error("Error fetching trade by id:", error)
     return null
+  }
+}
+
+// DB-level pagination
+export async function listTradesByUserPaged(
+  page: number = 1,
+  pageSize: number = 10
+): Promise<{
+  items: SelectTrade[]
+  hasNext: boolean
+  hasPrev: boolean
+  page: number
+  pageSize: number
+}> {
+  const { userId } = await auth()
+  if (!userId) return { items: [], hasNext: false, hasPrev: false, page: 1, pageSize }
+
+  const safePage = Math.max(1, Math.floor(Number(page) || 1))
+  const size = Math.max(1, Math.floor(Number(pageSize) || 10))
+  const offset = (safePage - 1) * size
+
+  try {
+    const rows = await db.query.trades.findMany({
+      where: eq(trades.userId, userId),
+      orderBy: desc(trades.createdAt),
+      limit: size + 1, // fetch one extra to detect "hasNext"
+      offset
+    })
+    const hasNext = rows.length > size
+    const items = hasNext ? rows.slice(0, size) : rows
+    const hasPrev = safePage > 1
+    return { items, hasNext, hasPrev, page: safePage, pageSize: size }
+  } catch (error) {
+    console.error("Error listing paged trades:", error)
+    return { items: [], hasNext: false, hasPrev: safePage > 1, page: safePage, pageSize: size }
   }
 }

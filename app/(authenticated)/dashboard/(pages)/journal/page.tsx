@@ -1,4 +1,4 @@
-import { listTradesByUser, createTrade } from "@/actions/trades"
+import { listTradesByUserPaged, createTrade } from "@/actions/trades"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -97,12 +97,15 @@ export default async function JournalPage({
   searchParams
 }: {
   // In Next.js App Router, searchParams is a Promise in async components
-  searchParams: Promise<{ screenshot?: string; screenshotPath?: string }>
+  searchParams: Promise<{ screenshot?: string; screenshotPath?: string; page?: string }>
 }) {
-  const trades = await listTradesByUser()
+  const params = await searchParams
+  const pageParam = params?.page ? Number(params.page) : 1
+  const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1
+  const pageSize = 10
+  const { items: trades, hasNext, hasPrev } = await listTradesByUserPaged(page, pageSize)
 
   // If a screenshot was uploaded, try to extract fields via vision model
-  const params = await searchParams
   const screenshotUrl = params?.screenshot
   const screenshotPath = params?.screenshotPath
   let extracted: ExtractedTrade | null = null
@@ -256,6 +259,26 @@ export default async function JournalPage({
               </a>
             ))
           )}
+        </div>
+        {/* Pagination controls */}
+        <div className="flex items-center justify-between py-2">
+          <div className="text-xs text-muted-foreground">Page {page}</div>
+          <div className="flex gap-2">
+            <a
+              aria-disabled={!hasPrev}
+              className={`border-input inline-flex h-9 items-center rounded-md border px-3 text-sm ${!hasPrev ? "pointer-events-none opacity-50" : "hover:bg-accent"}`}
+              href={`/dashboard/journal?page=${Math.max(1, page - 1)}`}
+            >
+              Prev
+            </a>
+            <a
+              aria-disabled={!hasNext}
+              className={`border-input inline-flex h-9 items-center rounded-md border px-3 text-sm ${!hasNext ? "pointer-events-none opacity-50" : "hover:bg-accent"}`}
+              href={`/dashboard/journal?page=${page + 1}`}
+            >
+              Next
+            </a>
+          </div>
         </div>
       </div>
     </div>
